@@ -30,4 +30,7 @@ public class PlayerDataDTO {
 
     @JsonProperty("stats")
     private StatsDTO stats;
+
+    @JsonProperty("recent_teammates")
+    private List<TeammateDTO> recentTeammates;
 }

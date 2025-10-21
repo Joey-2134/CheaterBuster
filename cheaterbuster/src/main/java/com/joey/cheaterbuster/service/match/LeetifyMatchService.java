@@ -8,6 +8,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Arrays;
@@ -27,6 +28,7 @@ public class LeetifyMatchService {
      * @return List of MatchDTO containing the player's match history
      */
     public List<MatchDTO> getMatchHistory(String steamId) {
+        System.out.println("Getting match history for Steam ID: " + steamId);
         String GET_MATCH_HISTORY_PATH = "/v3/profile/matches?steam64_id=";
         String url = config.getBaseUrl() + GET_MATCH_HISTORY_PATH + steamId;
 
@@ -37,15 +39,20 @@ public class LeetifyMatchService {
 
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
-        ResponseEntity<MatchDTO[]> response = restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                entity,
-                MatchDTO[].class
-        );
+        try {
+            ResponseEntity<MatchDTO[]> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    entity,
+                    MatchDTO[].class
+            );
 
-        MatchDTO[] body = response.getBody();
-        return body == null ? Collections.emptyList() : Arrays.asList(body);
+            MatchDTO[] body = response.getBody();
+            return body == null ? Collections.emptyList() : Arrays.asList(body);
+        } catch (HttpClientErrorException.NotFound e) {
+            System.out.println("Match history not found for Steam ID: " + steamId + " (404)");
+            return Collections.emptyList();
+        }
     }
 
     public MatchDTO getMatchDetails(String gameId) {

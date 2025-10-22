@@ -2,7 +2,9 @@ package com.joey.cheaterbuster.service.match;
 
 import com.joey.cheaterbuster.config.LeetifyConfig;
 import com.joey.cheaterbuster.dto.leetify.match.MatchDTO;
+import com.joey.cheaterbuster.util.Utils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -15,9 +17,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class LeetifyMatchService {
+    private static final String GET_MATCH_DETAILS_PATH = "/v2/matches/";
+    private static final String GET_MATCH_HISTORY_PATH = "/v3/profile/matches?steam64_id=";
+
     private final RestTemplate restTemplate;
     private final LeetifyConfig config;
 
@@ -28,15 +34,10 @@ public class LeetifyMatchService {
      * @return List of MatchDTO containing the player's match history
      */
     public List<MatchDTO> getMatchHistory(String steamId) {
-        System.out.println("Getting match history for Steam ID: " + steamId);
-        String GET_MATCH_HISTORY_PATH = "/v3/profile/matches?steam64_id=";
+        log.debug("Fetching match history for Steam ID: {}", steamId);
         String url = config.getBaseUrl() + GET_MATCH_HISTORY_PATH + steamId;
 
-        HttpHeaders headers = new HttpHeaders();
-        if (!config.getApiKey().isEmpty()) {
-            headers.set("_leetify_key", config.getApiKey());
-        }
-
+        HttpHeaders headers = Utils.createLeetifyHeaders(config.getApiKey());
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
         try {
@@ -48,32 +49,49 @@ public class LeetifyMatchService {
             );
 
             MatchDTO[] body = response.getBody();
-            return body == null ? Collections.emptyList() : Arrays.asList(body);
+            List<MatchDTO> matches = body == null ? Collections.emptyList() : Arrays.asList(body);
+            log.info("Successfully fetched {} matches for Steam ID: {}", matches.size(), steamId);
+            return matches;
         } catch (HttpClientErrorException.NotFound e) {
-            System.out.println("Match history not found for Steam ID: " + steamId + " (404)");
+            log.warn("Match history not found for Steam ID: {} (404)", steamId);
             return Collections.emptyList();
+        } catch (Exception e) {
+            log.error("Error fetching match history for Steam ID: {}", steamId, e);
+            throw e;
         }
     }
 
     public MatchDTO getMatchDetails(String gameId) {
-        String GET_MATCH_DETAILS_PATH = "/v2/matches/";
+        log.debug("Fetching match details for Game ID: {}", gameId);
         String url = config.getBaseUrl() + GET_MATCH_DETAILS_PATH + gameId;
 
-        HttpHeaders headers = new HttpHeaders();
-        if (!config.getApiKey().isEmpty()) {
-            headers.set("_leetify_key", config.getApiKey());
-        }
-
+        HttpHeaders headers = Utils.createLeetifyHeaders(config.getApiKey());
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
-        ResponseEntity<MatchDTO> response = restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                entity,
-                MatchDTO.class
-        );
+        try {
+            ResponseEntity<MatchDTO> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    entity,
+                    MatchDTO.class
+            );
 
-        return response.getBody();
+            MatchDTO matchDetails = response.getBody();
+            if (matchDetails != null) {
+                int playerCount = matchDetails.getStats() != null ? matchDetails.getStats().size() : 0;
+                log.info("Successfully fetched match details for Game ID: {} ({} players)", gameId, playerCount);
+                return matchDetails;
+            } else {
+                log.error("Received null response body from Leetify API for Game ID: {}", gameId);
+                throw new IllegalStateException("Received null response from Leetify API for Game ID: " + gameId);
+            }
+        } catch (HttpClientErrorException.NotFound e) {
+            log.warn("Match details not found for Game ID: {} (404)", gameId);
+            return null;
+        } catch (Exception e) {
+            log.error("Error fetching match details for Game ID: {}", gameId, e);
+            throw e;
+        }
     }
 
 }

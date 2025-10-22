@@ -12,7 +12,7 @@
 	<artifactId>cheaterbuster</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>Cheater Buster</name>
-	<description>TODO</description>
+	<description>Spring app which gathers and stores player data from Leetify's API</description>
 	<url/>
 	<licenses>
 		<license/>

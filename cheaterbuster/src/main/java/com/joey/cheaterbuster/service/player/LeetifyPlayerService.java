@@ -6,7 +6,9 @@ import com.joey.cheaterbuster.dto.leetify.match.StatsDTO;
 import com.joey.cheaterbuster.dto.leetify.player.PlayerDataDTO;
 import com.joey.cheaterbuster.dto.leetify.player.TeammateDTO;
 import com.joey.cheaterbuster.service.match.LeetifyMatchService;
+import com.joey.cheaterbuster.util.Utils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -16,6 +18,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class LeetifyPlayerService {
@@ -33,28 +36,37 @@ public class LeetifyPlayerService {
      * @return PlayerDataDTO containing the player's profile information
      */
     public PlayerDataDTO getPlayerProfile(String steam64Id) {
+        log.debug("Fetching player profile for Steam ID: {}", steam64Id);
         String url = config.getBaseUrl() + GET_PROFILE_PATH + steam64Id;
 
-        HttpHeaders headers = new HttpHeaders();
-        if (!config.getApiKey().isEmpty()) {
-            headers.set("_leetify_key", config.getApiKey());
-        }
-
+        HttpHeaders headers = Utils.createLeetifyHeaders(config.getApiKey());
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
-        ResponseEntity<PlayerDataDTO> response = restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                entity,
-                PlayerDataDTO.class
-        );
+        try {
+            ResponseEntity<PlayerDataDTO> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    entity,
+                    PlayerDataDTO.class
+            );
 
-        return response.getBody();
+            PlayerDataDTO profile = response.getBody();
+            if (profile != null) {
+                log.info("Successfully fetched profile for Steam ID: {} (Name: {})", steam64Id, profile.getName());
+                return profile;
+            } else {
+                log.error("Received null response body from Leetify API for Steam ID: {}", steam64Id);
+                throw new IllegalStateException("Received null response from Leetify API for Steam ID: " + steam64Id);
+            }
+        } catch (Exception e) {
+            log.error("Failed to fetch player profile for Steam ID: {}", steam64Id, e);
+            throw e;
+        }
     }
 
     /**
      * Fetches player profiles starting from an initial player and traversing through their teammates
-     * until the specified number of entries is reached. If player has no recent teamemates and Ids to check runs out,
+     * until the specified number of entries is reached. If player has no recent teammates and Ids to check runs out,
      * it will look at recent matches to find more players.
      *
      * @param numEntries The target number of profiles to fetch
@@ -63,6 +75,7 @@ public class LeetifyPlayerService {
      */
 
     public List<PlayerDataDTO> getPlayerProfiles(int numEntries, String firstId) {
+        log.info("Starting players gathering process from Steam ID: {} (target: {} profiles)", firstId, numEntries);
         Set<String> checkedIds = new HashSet<>();
         Set<String> enqueuedIds = new HashSet<>();
         List<PlayerDataDTO> profiles = new ArrayList<>();
@@ -73,18 +86,20 @@ public class LeetifyPlayerService {
 
         while (!idsToCheck.isEmpty() && profiles.size() < numEntries) {
             String currentId = idsToCheck.poll();
+            log.debug("Processing Steam ID: {} (Progress: {}/{})", currentId, profiles.size(), numEntries);
 
             PlayerDataDTO profile;
             try {
                 profile = getPlayerProfile(currentId);
             } catch (Exception e) {
-                // mark as checked to avoid retrying
+                log.warn("Failed to fetch profile for Steam ID: {} - {}", currentId, e.getMessage());
                 checkedIds.add(currentId);
                 continue;
             }
 
             // If profile couldn't be retrieved, mark checked and continue
             if (profile == null) {
+                log.warn("Received null profile for Steam ID: {}, skipping", currentId);
                 checkedIds.add(currentId);
                 continue;
             }
@@ -92,6 +107,7 @@ public class LeetifyPlayerService {
             // Successfully retrieved
             profiles.add(profile);
             checkedIds.add(currentId);
+            log.debug("Added profile for {} (Total: {})", profile.getName(), profiles.size());
 
             if (profiles.size() >= numEntries) break;
 
@@ -104,18 +120,28 @@ public class LeetifyPlayerService {
                     anyTeammatesAdded = true;
                 }
             }
+            if (anyTeammatesAdded) {
+                log.debug("Added {} teammates to queue from {}", teammateIds.size(), profile.getName());
+            }
 
             // If no teammates were added, try expanding via recent matches
             if (!anyTeammatesAdded) {
+                log.debug("No new teammates found for {}, expanding via recent matches", profile.getName());
                 Set<String> matchPlayerIds = getPlayerIdsFromRecentMatches(profile);
+                int addedFromMatches = 0;
                 for (String id : matchPlayerIds) {
                     if (!checkedIds.contains(id) && enqueuedIds.add(id)) {
                         idsToCheck.add(id);
+                        addedFromMatches++;
                     }
+                }
+                if (addedFromMatches > 0) {
+                    log.debug("Added {} player IDs from recent matches", addedFromMatches);
                 }
             }
         }
 
+        log.info("Completed player gathering. Collected {} profiles", profiles.size());
         return profiles;
     }
 
@@ -126,19 +152,24 @@ public class LeetifyPlayerService {
      * @return Set of Steam64 IDs from recent matches
      */
     private Set<String> getPlayerIdsFromRecentMatches(PlayerDataDTO profile) {
-        List<MatchDTO> recentMatches;
+        log.debug("Fetching player IDs from recent matches for Steam ID: {}", profile.getSteamId());
         Set<String> playerIds = new HashSet<>();
 
-        recentMatches = leetifyMatchService.getMatchHistory(profile.getSteamId());
+        List<MatchDTO> recentMatches = leetifyMatchService.getMatchHistory(profile.getSteamId());
+        log.debug("Found {} recent matches for {}", recentMatches.size(), profile.getName());
 
+        int matchesProcessed = 0;
         for (MatchDTO match : recentMatches) {
             // Stop fetching match details if we've collected enough player IDs
             if (playerIds.size() >= MAX_PLAYER_IDS_FROM_MATCHES) {
+                log.debug("Reached max player IDs limit ({}) after processing {} matches",
+                         MAX_PLAYER_IDS_FROM_MATCHES, matchesProcessed);
                 break;
             }
 
             MatchDTO matchDetails = leetifyMatchService.getMatchDetails(match.getMatchId());
             if (matchDetails != null && matchDetails.getStats() != null) {
+                matchesProcessed++;
                 for (StatsDTO stats : matchDetails.getStats()) {
                     playerIds.add(stats.getSteam64Id());
 
@@ -150,6 +181,7 @@ public class LeetifyPlayerService {
             }
         }
 
+        log.debug("Collected {} unique player IDs from {} matches", playerIds.size(), matchesProcessed);
         return playerIds;
     }
 

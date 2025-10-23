@@ -3,6 +3,7 @@ package com.joey.cheaterbuster.service.match;
 import com.joey.cheaterbuster.config.LeetifyConfig;
 import com.joey.cheaterbuster.dto.leetify.match.MatchDTO;
 import com.joey.cheaterbuster.util.Utils;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
@@ -29,10 +30,12 @@ public class LeetifyMatchService {
 
     /**
      * Fetches the match history for a player given their Steam64 ID.
+     * Rate limited to 1 call per second.
      *
      * @param steamId The Steam64 ID of the player
      * @return List of MatchDTO containing the player's match history
      */
+    @RateLimiter(name = "leetifyApi")
     public List<MatchDTO> getMatchHistory(String steamId) {
         log.debug("Fetching match history for Steam ID: {}", steamId);
         String url = config.getBaseUrl() + GET_MATCH_HISTORY_PATH + steamId;
@@ -61,6 +64,12 @@ public class LeetifyMatchService {
         }
     }
 
+    /**
+     * Fetches detailed match information by game ID.*
+     * @param gameId The game ID of the match
+     * @return MatchDTO containing detailed match information
+     */
+    @RateLimiter(name = "leetifyApi")
     public MatchDTO getMatchDetails(String gameId) {
         log.debug("Fetching match details for Game ID: {}", gameId);
         String url = config.getBaseUrl() + GET_MATCH_DETAILS_PATH + gameId;

@@ -10,6 +10,7 @@ import com.joey.cheaterbuster.mapper.PlayerDataMapper;
 import com.joey.cheaterbuster.repository.PlayerDataRepository;
 import com.joey.cheaterbuster.service.match.LeetifyMatchService;
 import com.joey.cheaterbuster.util.Utils;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
@@ -36,10 +37,12 @@ public class LeetifyPlayerService {
 
     /**
      * Fetches the profile of a player given their Steam64 ID.
+     * Rate limited to 1 call per second.
      *
      * @param steam64Id The Steam64 ID of the player
      * @return PlayerDataDTO containing the player's profile information
      */
+    @RateLimiter(name = "leetifyApi")
     public PlayerDataDTO getPlayerProfile(String steam64Id) {
         log.debug("Fetching player profile for Steam ID: {}", steam64Id);
         String url = config.getBaseUrl() + GET_PROFILE_PATH + steam64Id;

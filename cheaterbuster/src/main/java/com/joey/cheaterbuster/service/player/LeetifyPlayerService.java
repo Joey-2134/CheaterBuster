@@ -5,6 +5,9 @@ import com.joey.cheaterbuster.dto.leetify.match.MatchDTO;
 import com.joey.cheaterbuster.dto.leetify.match.StatsDTO;
 import com.joey.cheaterbuster.dto.leetify.player.PlayerDataDTO;
 import com.joey.cheaterbuster.dto.leetify.player.TeammateDTO;
+import com.joey.cheaterbuster.entity.PlayerData;
+import com.joey.cheaterbuster.mapper.PlayerDataMapper;
+import com.joey.cheaterbuster.repository.PlayerDataRepository;
 import com.joey.cheaterbuster.service.match.LeetifyMatchService;
 import com.joey.cheaterbuster.util.Utils;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +31,8 @@ public class LeetifyPlayerService {
     private final RestTemplate restTemplate;
     private final LeetifyConfig config;
     private final LeetifyMatchService leetifyMatchService;
+    private final PlayerDataRepository playerDataRepository;
+    private final PlayerDataMapper playerDataMapper;
 
     /**
      * Fetches the profile of a player given their Steam64 ID.
@@ -53,6 +58,10 @@ public class LeetifyPlayerService {
             PlayerDataDTO profile = response.getBody();
             if (profile != null) {
                 log.info("Successfully fetched profile for Steam ID: {} (Name: {})", steam64Id, profile.getName());
+
+                // Save to database
+                savePlayerData(profile);
+
                 return profile;
             } else {
                 log.error("Received null response body from Leetify API for Steam ID: {}", steam64Id);
@@ -198,5 +207,24 @@ public class LeetifyPlayerService {
         return recentTeammates.stream()
                 .map(TeammateDTO::getSteamId)
                 .toList();
+    }
+
+    /**
+     * Saves player data to the database.
+     * Converts DTO to entity and persists it.
+     *
+     * @param dto The PlayerDataDTO to save
+     */
+    private void savePlayerData(PlayerDataDTO dto) {
+        try {
+            PlayerData entity = playerDataMapper.toEntity(dto);
+            if (entity != null) {
+                playerDataRepository.save(entity);
+                log.debug("Saved player data to database for Steam ID: {} ({})", dto.getSteamId(), dto.getName());
+            }
+        } catch (Exception e) {
+            log.error("Failed to save player data for Steam ID: {} - {}", dto.getSteamId(), e.getMessage(), e);
+            // Don't rethrow - we don't want database failures to break the API fetch
+        }
     }
 }

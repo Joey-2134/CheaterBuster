@@ -4,13 +4,18 @@ import com.joey.cheaterbuster.dto.leetify.match.MatchDTO;
 import com.joey.cheaterbuster.dto.leetify.player.PlayerDataDTO;
 import com.joey.cheaterbuster.service.match.LeetifyMatchService;
 import com.joey.cheaterbuster.service.player.LeetifyPlayerService;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @Slf4j
+@Validated
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -23,7 +28,8 @@ public class LeetifyController {
      * GET /api/players/{steamId}
      */
     @GetMapping("/players/{steamId}")
-    public PlayerDataDTO getPlayer(@PathVariable String steamId) {
+    public PlayerDataDTO getPlayer(
+            @PathVariable @NotBlank(message = "Steam ID cannot be blank") String steamId) {
         log.info("GET /api/players/{} - Fetching player profile", steamId);
         return leetifyPlayerService.getPlayerProfile(steamId);
     }
@@ -34,8 +40,8 @@ public class LeetifyController {
      */
     @GetMapping("/players/{steamId}/network")
     public List<PlayerDataDTO> getPlayerNetwork(
-            @PathVariable String steamId,
-            @RequestParam(defaultValue = "10") int limit) {
+            @PathVariable @NotBlank(message = "Steam ID cannot be blank") String steamId,
+            @RequestParam(defaultValue = "10") @Min(value = 1, message = "Limit must be at least 1") @Max(value = 1000000, message = "Limit cannot exceed 1,000,000") int limit) {
         log.info("GET /api/players/{}/network?limit={} - Fetching player network", steamId, limit);
         return leetifyPlayerService.getPlayerProfiles(limit, steamId);
     }
@@ -45,7 +51,8 @@ public class LeetifyController {
      * GET /api/players/{steamId}/matches
      */
     @GetMapping("/players/{steamId}/matches")
-    public List<MatchDTO> getPlayerMatches(@PathVariable String steamId) {
+    public List<MatchDTO> getPlayerMatches(
+            @PathVariable @NotBlank(message = "Steam ID cannot be blank") String steamId) {
         log.info("GET /api/players/{}/matches - Fetching match history", steamId);
         return leetifyMatchService.getMatchHistory(steamId);
     }
@@ -55,7 +62,8 @@ public class LeetifyController {
      * GET /api/matches/{gameId}
      */
     @GetMapping("/matches/{gameId}")
-    public MatchDTO getMatch(@PathVariable String gameId) {
+    public MatchDTO getMatch(
+            @PathVariable @NotBlank(message = "Game ID cannot be blank") String gameId) {
         log.info("GET /api/matches/{} - Fetching match details", gameId);
         return leetifyMatchService.getMatchDetails(gameId);
     }

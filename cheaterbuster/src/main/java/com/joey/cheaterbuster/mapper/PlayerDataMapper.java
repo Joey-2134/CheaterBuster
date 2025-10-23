@@ -1,8 +1,6 @@
 package com.joey.cheaterbuster.mapper;
 
-import com.joey.cheaterbuster.dto.leetify.player.BanEntryDTO;
 import com.joey.cheaterbuster.dto.leetify.player.PlayerDataDTO;
-import com.joey.cheaterbuster.entity.Ban;
 import com.joey.cheaterbuster.entity.PlayerData;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -82,18 +80,7 @@ public class PlayerDataMapper {
         }
 
         // Map bans
-        if (dto.getBans() != null && !dto.getBans().isEmpty()) {
-            List<Ban> bans = new ArrayList<>();
-            for (BanEntryDTO banDto : dto.getBans()) {
-                Ban ban = Ban.builder()
-                        .platform(banDto.getPlatform())
-                        .bannedDate(banDto.getBannedDate())
-                        .player(entity)
-                        .build();
-                bans.add(ban);
-            }
-            entity.setBans(bans);
-        }
+        entity.setHasBan(dto.getBans() != null && !dto.getBans().isEmpty());
 
         log.debug("Successfully mapped entity for Steam ID: {} ({})", dto.getSteamId(), dto.getName());
         return entity;

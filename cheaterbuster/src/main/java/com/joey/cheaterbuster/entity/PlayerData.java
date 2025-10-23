@@ -9,8 +9,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Table(name = "player_data")
@@ -129,10 +127,8 @@ public class PlayerData {
     @Column(name = "trade_kill_opportunities_per_round")
     private Double tradeKillOpportunitiesPerRound;
 
-    // Bans relationship
-    @OneToMany(mappedBy = "player", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<Ban> bans = new ArrayList<>();
+    @Column(name = "has_ban")
+    private Boolean hasBan;
 
     // Audit timestamps
     @CreationTimestamp

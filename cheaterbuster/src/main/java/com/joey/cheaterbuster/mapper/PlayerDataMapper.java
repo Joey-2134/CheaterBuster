@@ -1,11 +1,12 @@
 package com.joey.cheaterbuster.mapper;
 
-import com.joey.cheaterbuster.dto.leetify.player.PlayerDataDTO;
+import com.joey.cheaterbuster.dto.leetify.player.*;
 import com.joey.cheaterbuster.entity.PlayerData;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -102,5 +103,75 @@ public class PlayerDataMapper {
                 .map(this::toEntity)
                 .filter(Objects::nonNull)
                 .toList();
+    }
+
+    /**
+     * Maps a PlayerData entity from database to a PlayerDataDTO.
+     *
+     * @param entity The PlayerData entity from database
+     * @return PlayerDataDTO for API response
+     */
+    public PlayerDataDTO toDTO(PlayerData entity) {
+        if (entity == null) {
+            log.warn("Attempted to map null PlayerData entity to DTO");
+            return null;
+        }
+
+        log.debug("Mapping PlayerData entity to DTO for Steam ID: {}", entity.getSteamId());
+
+        PlayerDataDTO dto = new PlayerDataDTO();
+        dto.setSteamId(entity.getSteamId());
+        dto.setName(entity.getName());
+        dto.setWinRate(entity.getWinRate());
+        dto.setTotalMatches(entity.getTotalMatches());
+
+        // Map ranks
+        RanksDTO ranks = new RanksDTO();
+        ranks.setPremier(entity.getRankPremier());
+        ranks.setFaceit(entity.getRankFaceitElo());
+        dto.setRanks(ranks);
+
+        // Map ratings
+        RatingDTO ratings = new RatingDTO();
+        ratings.setAim(entity.getRatingAim());
+        ratings.setPositioning(entity.getRatingPositioning());
+        ratings.setUtility(entity.getRatingUtility());
+        ratings.setClutch(entity.getRatingClutch());
+        ratings.setOpening(entity.getRatingOpening());
+        ratings.setCtLeetify(entity.getRatingCtLeetify());
+        ratings.setTLeetify(entity.getRatingTLeetify());
+        dto.setRatings(ratings);
+
+        // Map stats
+        StatsDTO stats = new StatsDTO();
+        stats.setAccuracyHead(entity.getAccuracyHead());
+        stats.setAccuracyEnemySpotted(entity.getAccuracyEnemySpotted());
+        stats.setReactionTimeMs(entity.getReactionTimeMs());
+        stats.setSprayAccuracy(entity.getSprayAccuracy());
+        stats.setPreaim(entity.getPreaim());
+        stats.setCounterStrafingGoodShotsRatio(entity.getCounterStrafingGoodShotsRatio());
+        stats.setCtOpeningDuelSuccessPercentage(entity.getCtOpeningDuelSuccessPercentage());
+        stats.setTOpeningDuelSuccessPercentage(entity.getTOpeningDuelSuccessPercentage());
+        stats.setCtOpeningAggressionSuccessRate(entity.getCtOpeningAggressionSuccessRate());
+        stats.setTOpeningAggressionSuccessRate(entity.getTOpeningAggressionSuccessRate());
+        stats.setFlashbangThrown(entity.getFlashbangThrown());
+        stats.setFlashbangHitFoePerFlashbang(entity.getFlashbangHitFoePerFlashbang());
+        stats.setFlashbangHitFriendPerFlashbang(entity.getFlashbangHitFriendPerFlashbang());
+        stats.setFlashbangHitFoeAvgDuration(entity.getFlashbangHitFoeAvgDuration());
+        stats.setFlashbangLeadingToKill(entity.getFlashbangLeadingToKill());
+        stats.setHeFoesDamageAvg(entity.getHeFoesDamageAvg());
+        stats.setHeFriendsDamageAvg(entity.getHeFriendsDamageAvg());
+        stats.setUtilityOnDeathAvg(entity.getUtilityOnDeathAvg());
+        stats.setTradeKillsSuccessPercentage(entity.getTradeKillsSuccessPercentage());
+        stats.setTradedDeathsSuccessPercentage(entity.getTradedDeathsSuccessPercentage());
+        stats.setTradeKillOpportunitiesPerRound(entity.getTradeKillOpportunitiesPerRound());
+        dto.setStats(stats);
+
+        // Note: We don't store bans or recentTeammates in the database, so these will be empty/null
+        dto.setBans(Collections.emptyList());
+        dto.setRecentTeammates(Collections.emptyList());
+
+        log.debug("Successfully mapped DTO for Steam ID: {} ({})", entity.getSteamId(), entity.getName());
+        return dto;
     }
 }

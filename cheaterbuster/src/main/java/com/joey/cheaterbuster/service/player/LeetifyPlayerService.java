@@ -37,14 +37,33 @@ public class LeetifyPlayerService {
 
     /**
      * Fetches the profile of a player given their Steam64 ID.
-     * Rate limited to 1 call per second.
+     *
+     * @param steam64Id The Steam64 ID of the player
+     * @return PlayerDataDTO containing the player's profile information
+     */
+    public PlayerDataDTO getPlayerProfile(String steam64Id) {
+        log.debug("Fetching player profile for Steam ID: {}", steam64Id);
+
+        // Check database first
+        Optional<PlayerData> existingPlayer = playerDataRepository.findBySteamId(steam64Id);
+        if (existingPlayer.isPresent()) {
+            log.info("Player profile found in database for Steam ID: {} ({})", steam64Id, existingPlayer.get().getName());
+            return playerDataMapper.toDTO(existingPlayer.get());
+        }
+
+        // Not in database, fetch from Leetify API
+        log.debug("Player not in database, fetching from Leetify API for Steam ID: {}", steam64Id);
+        return fetchFromLeetifyApi(steam64Id);
+    }
+
+    /**
+     * Fetches player profile from Leetify API.
      *
      * @param steam64Id The Steam64 ID of the player
      * @return PlayerDataDTO containing the player's profile information
      */
     @RateLimiter(name = "leetifyApi")
-    public PlayerDataDTO getPlayerProfile(String steam64Id) {
-        log.debug("Fetching player profile for Steam ID: {}", steam64Id);
+    private PlayerDataDTO fetchFromLeetifyApi(String steam64Id) {
         String url = config.getBaseUrl() + GET_PROFILE_PATH + steam64Id;
 
         HttpHeaders headers = Utils.createLeetifyHeaders(config.getApiKey());
@@ -60,7 +79,7 @@ public class LeetifyPlayerService {
 
             PlayerDataDTO profile = response.getBody();
             if (profile != null) {
-                log.info("Successfully fetched profile for Steam ID: {} (Name: {})", steam64Id, profile.getName());
+                log.info("Successfully fetched profile from Leetify API for Steam ID: {} (Name: {})", steam64Id, profile.getName());
 
                 // Save to database
                 savePlayerData(profile);

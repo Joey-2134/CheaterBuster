@@ -1,4 +1,4 @@
-package com.joey.cheaterbuster.dto.leetify;
+package com.joey.cheaterbuster.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;

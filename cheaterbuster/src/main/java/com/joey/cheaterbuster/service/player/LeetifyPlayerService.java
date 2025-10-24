@@ -1,7 +1,7 @@
 package com.joey.cheaterbuster.service.player;
 
 import com.joey.cheaterbuster.config.LeetifyConfig;
-import com.joey.cheaterbuster.dto.leetify.VaclistProfileDTO;
+import com.joey.cheaterbuster.dto.VaclistProfileDTO;
 import com.joey.cheaterbuster.dto.leetify.match.MatchDTO;
 import com.joey.cheaterbuster.dto.leetify.match.StatsDTO;
 import com.joey.cheaterbuster.dto.leetify.player.PlayerDataDTO;

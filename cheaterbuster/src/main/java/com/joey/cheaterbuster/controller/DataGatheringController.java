@@ -19,7 +19,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
-public class LeetifyController {
+public class DataGatheringController {
     private final LeetifyPlayerService leetifyPlayerService;
     private final LeetifyMatchService leetifyMatchService;
 
@@ -44,6 +44,19 @@ public class LeetifyController {
             @RequestParam(defaultValue = "10") @Min(value = 1, message = "Limit must be at least 1") @Max(value = 1000000, message = "Limit cannot exceed 1,000,000") int limit) {
         log.info("GET /api/players/{}/network?limit={} - Fetching player network", steamId, limit);
         return leetifyPlayerService.getPlayerProfiles(limit, steamId);
+    }
+
+    /**
+     * Get a list of banned players
+     *
+     * @param limit num of banned profiles to fetch
+     * @return List of banned players
+     */
+    @GetMapping("/players/banned")
+    public List<PlayerDataDTO> getBannedPlayers(
+            @RequestParam(defaultValue = "10") @Min(value = 1, message = "Limit must be at least 1") @Max(value = 1000000, message = "Limit cannot exceed 1,000,000") int limit) {
+        log.info("GET /api/players/banned?limit={} - Fetching banned players", limit);
+        return leetifyPlayerService.getBannedPlayerProfiles(limit);
     }
 
     /**

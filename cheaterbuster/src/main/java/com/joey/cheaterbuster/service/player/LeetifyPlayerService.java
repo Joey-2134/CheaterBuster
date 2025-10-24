@@ -1,6 +1,7 @@
 package com.joey.cheaterbuster.service.player;
 
 import com.joey.cheaterbuster.config.LeetifyConfig;
+import com.joey.cheaterbuster.dto.leetify.VaclistProfileDTO;
 import com.joey.cheaterbuster.dto.leetify.match.MatchDTO;
 import com.joey.cheaterbuster.dto.leetify.match.StatsDTO;
 import com.joey.cheaterbuster.dto.leetify.player.PlayerDataDTO;
@@ -29,6 +30,7 @@ public class LeetifyPlayerService {
 
     private static final int MAX_PLAYER_IDS_FROM_MATCHES = 20;
     private static final String GET_PROFILE_PATH = "/v3/profile?steam64_id=";
+    private static final String GET_BANNED_PATH = "https://vaclist.net/api/banned";
     private final RestTemplate restTemplate;
     private final LeetifyConfig config;
     private final LeetifyMatchService leetifyMatchService;
@@ -54,45 +56,6 @@ public class LeetifyPlayerService {
         // Not in database, fetch from Leetify API
         log.debug("Player not in database, fetching from Leetify API for Steam ID: {}", steam64Id);
         return fetchFromLeetifyApi(steam64Id);
-    }
-
-    /**
-     * Fetches player profile from Leetify API.
-     *
-     * @param steam64Id The Steam64 ID of the player
-     * @return PlayerDataDTO containing the player's profile information
-     */
-    @RateLimiter(name = "leetifyApi")
-    private PlayerDataDTO fetchFromLeetifyApi(String steam64Id) {
-        String url = config.getBaseUrl() + GET_PROFILE_PATH + steam64Id;
-
-        HttpHeaders headers = Utils.createLeetifyHeaders(config.getApiKey());
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-
-        try {
-            ResponseEntity<PlayerDataDTO> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.GET,
-                    entity,
-                    PlayerDataDTO.class
-            );
-
-            PlayerDataDTO profile = response.getBody();
-            if (profile != null) {
-                log.info("Successfully fetched profile from Leetify API for Steam ID: {} (Name: {})", steam64Id, profile.getName());
-
-                // Save to database
-                savePlayerData(profile);
-
-                return profile;
-            } else {
-                log.error("Received null response body from Leetify API for Steam ID: {}", steam64Id);
-                throw new IllegalStateException("Received null response from Leetify API for Steam ID: " + steam64Id);
-            }
-        } catch (Exception e) {
-            log.error("Failed to fetch player profile for Steam ID: {}", steam64Id, e);
-            throw e;
-        }
     }
 
     /**
@@ -174,6 +137,144 @@ public class LeetifyPlayerService {
 
         log.info("Completed player gathering. Collected {} profiles", profiles.size());
         return profiles;
+    }
+
+    /**
+     * Gets and saves list of banned players to DB with automatic pagination.
+     * Only fetches profiles that don't already exist in the database.
+     *
+     * @param numEntries num of new profiles to fetch
+     * @return list of banned profiles
+     */
+    public List<PlayerDataDTO> getBannedPlayerProfiles(int numEntries) {
+        log.info("Fetching {} new banned player profiles", numEntries);
+        List<PlayerDataDTO> profiles = new ArrayList<>();
+        int currentPage = 0;
+        int maxPages = 100; // Safety limit to prevent infinite loops
+
+        while (profiles.size() < numEntries && currentPage < maxPages) {
+            log.debug("Fetching page {} of banned Steam IDs", currentPage);
+            Set<String> steamIdsFromPage = getBannedSteamIds(numEntries, currentPage);
+
+            if (steamIdsFromPage.isEmpty()) {
+                log.info("No more banned Steam IDs available from VacList");
+                break;
+            }
+
+            // Filter out Steam IDs that already exist in the database
+            List<String> newSteamIds = steamIdsFromPage.stream()
+                    .filter(steamId -> !playerDataRepository.existsBySteamId(steamId))
+                    .toList();
+
+            log.debug("Page {}: Found {} total IDs, {} are new", currentPage, steamIdsFromPage.size(), newSteamIds.size());
+
+            // Fetch profiles for new Steam IDs
+            for (String steamId : newSteamIds) {
+                if (profiles.size() >= numEntries) {
+                    break;
+                }
+
+                try {
+                    PlayerDataDTO profile = getPlayerProfile(steamId);
+                    if (profile != null) {
+                        profiles.add(profile);
+                        log.debug("Added banned profile for {} (Total: {}/{})", profile.getName(), profiles.size(), numEntries);
+                    } else {
+                        log.warn("Received null profile for banned Steam ID: {}, skipping", steamId);
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to fetch profile for banned Steam ID: {} - {}", steamId, e.getMessage());
+                    // Continue to next profile instead of failing the entire request
+                }
+            }
+
+            currentPage++;
+        }
+
+        if (currentPage >= maxPages) {
+            log.warn("Reached maximum page limit ({}) while fetching banned profiles", maxPages);
+        }
+
+        log.info("Successfully fetched {} new banned player profiles (checked {} pages)", profiles.size(), currentPage);
+        return profiles;
+    }
+
+    /**
+     * Fetches a list of banned steamIds from vaclist
+     *
+     * @param numEntries number of ids to return per page
+     * @param page page number (0-indexed)
+     * @return a set of steamIds
+     */
+    @RateLimiter(name = "vaclistApi")
+    private Set<String> getBannedSteamIds(int numEntries, int page) {
+        Set<String> steamIds = new HashSet<>();
+        String url = GET_BANNED_PATH + "?count=" + numEntries + "&page=" + page;
+        HttpHeaders headers = new HttpHeaders();
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        try {
+            ResponseEntity<VaclistProfileDTO[]> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    entity,
+                    VaclistProfileDTO[].class
+            );
+
+            VaclistProfileDTO[] profiles = response.getBody();
+            if (profiles != null) {
+                for (VaclistProfileDTO profile : profiles) {
+                    if (profile.getSteamId() != null) {
+                        steamIds.add(profile.getSteamId());
+                    }
+                }
+                log.debug("Fetched {} Steam IDs from VacList page {}", steamIds.size(), page);
+            }
+
+            return steamIds;
+        } catch (Exception e) {
+            log.error("Error fetching Banned Steam IDs from page {}: {}", page, e.getMessage());
+            throw new RuntimeException("Error fetching Banned Steam IDs from page " + page + ": " + e.getMessage());
+        }
+    }
+
+    /**
+     * Fetches player profile from Leetify API.
+     *
+     * @param steam64Id The Steam64 ID of the player
+     * @return PlayerDataDTO containing the player's profile information
+     */
+    @RateLimiter(name = "leetifyApi")
+    private PlayerDataDTO fetchFromLeetifyApi(String steam64Id) {
+        String url = config.getBaseUrl() + GET_PROFILE_PATH + steam64Id;
+
+        HttpHeaders headers = Utils.createLeetifyHeaders(config.getApiKey());
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        try {
+            ResponseEntity<PlayerDataDTO> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    entity,
+                    PlayerDataDTO.class
+            );
+
+            PlayerDataDTO profile = response.getBody();
+            if (profile != null) {
+                log.info("Successfully fetched profile from Leetify API for Steam ID: {} (Name: {})", steam64Id, profile.getName());
+
+                // Save to database
+                savePlayerData(profile);
+
+                return profile;
+            } else {
+                log.error("Received null response body from Leetify API for Steam ID: {}", steam64Id);
+                throw new IllegalStateException("Received null response from Leetify API for Steam ID: " + steam64Id);
+            }
+        } catch (Exception e) {
+            log.error("Failed to fetch player profile for Steam ID: {}", steam64Id, e);
+            throw e;
+        }
     }
 
     /**

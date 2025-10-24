@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface PlayerDataRepository extends JpaRepository<PlayerData, String> {
     Optional<PlayerData> findBySteamId(String steamId);
+    boolean existsBySteamId(String steamId);
 }

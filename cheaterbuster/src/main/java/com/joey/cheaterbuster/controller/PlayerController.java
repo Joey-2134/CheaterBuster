@@ -19,7 +19,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
-public class DataGatheringController {
+public class PlayerController {
     private final LeetifyPlayerService leetifyPlayerService;
     private final LeetifyMatchService leetifyMatchService;
 

@@ -7,6 +7,9 @@ import com.joey.cheaterbuster.dto.leetify.match.StatsDTO;
 import com.joey.cheaterbuster.dto.leetify.player.PlayerDataDTO;
 import com.joey.cheaterbuster.dto.leetify.player.TeammateDTO;
 import com.joey.cheaterbuster.entity.PlayerData;
+import com.joey.cheaterbuster.exception.LeetifyApiException;
+import com.joey.cheaterbuster.exception.PlayerNotFoundException;
+import com.joey.cheaterbuster.exception.VaclistApiException;
 import com.joey.cheaterbuster.mapper.PlayerDataMapper;
 import com.joey.cheaterbuster.repository.PlayerDataRepository;
 import com.joey.cheaterbuster.service.match.LeetifyMatchService;
@@ -19,6 +22,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
@@ -232,9 +236,12 @@ public class LeetifyPlayerService {
             }
 
             return steamIds;
+        } catch (HttpClientErrorException e) {
+            log.error("VacList API error on page {}: {} - {}", page, e.getStatusCode(), e.getMessage());
+            throw new VaclistApiException("Failed to fetch banned Steam IDs from VacList (page " + page + ")", e);
         } catch (Exception e) {
-            log.error("Error fetching Banned Steam IDs from page {}: {}", page, e.getMessage());
-            throw new RuntimeException("Error fetching Banned Steam IDs from page " + page + ": " + e.getMessage());
+            log.error("Unexpected error fetching banned Steam IDs from page {}: {}", page, e.getMessage(), e);
+            throw new VaclistApiException("Unexpected error fetching banned Steam IDs from VacList (page " + page + ")", e);
         }
     }
 
@@ -269,11 +276,20 @@ public class LeetifyPlayerService {
                 return profile;
             } else {
                 log.error("Received null response body from Leetify API for Steam ID: {}", steam64Id);
-                throw new IllegalStateException("Received null response from Leetify API for Steam ID: " + steam64Id);
+                throw new LeetifyApiException("Received null response from Leetify API for Steam ID: " + steam64Id);
             }
-        } catch (Exception e) {
-            log.error("Failed to fetch player profile for Steam ID: {}", steam64Id, e);
+        } catch (HttpClientErrorException.NotFound e) {
+            log.warn("Player not found on Leetify API for Steam ID: {}", steam64Id);
+            throw new PlayerNotFoundException(steam64Id, e);
+        } catch (HttpClientErrorException e) {
+            log.error("Leetify API error for Steam ID {}: {} - {}", steam64Id, e.getStatusCode(), e.getMessage());
+            throw new LeetifyApiException("Leetify API error for Steam ID " + steam64Id + ": " + e.getStatusCode(), e);
+        } catch (LeetifyApiException | PlayerNotFoundException e) {
+            // Already our custom exceptions, just rethrow
             throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error fetching player profile for Steam ID: {}", steam64Id, e);
+            throw new LeetifyApiException("Unexpected error fetching player profile for Steam ID: " + steam64Id, e);
         }
     }
 

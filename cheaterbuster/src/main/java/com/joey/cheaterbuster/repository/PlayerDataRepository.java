@@ -2,6 +2,7 @@ package com.joey.cheaterbuster.repository;
 
 import com.joey.cheaterbuster.entity.PlayerData;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -10,4 +11,7 @@ import java.util.Optional;
 public interface PlayerDataRepository extends JpaRepository<PlayerData, String> {
     Optional<PlayerData> findBySteamId(String steamId);
     boolean existsBySteamId(String steamId);
+
+    @Query(value = "SELECT * FROM player_data ORDER BY RAND() LIMIT 1", nativeQuery = true)
+    Optional<PlayerData> findRandomPlayer();
 }

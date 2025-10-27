@@ -1,7 +1,7 @@
 import {API_BASE_URL} from "../util/constants.js";
 
 export const getPlayerCount = async () => {
-    const response = await fetch(`${API_BASE_URL}/api/gathering/count`, {
+    const response = await fetch(`${API_BASE_URL}/gathering/count`, {
         headers: {
             'X-API-Key': import.meta.env.VITE_API_KEY
         }

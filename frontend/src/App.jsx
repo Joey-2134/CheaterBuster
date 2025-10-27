@@ -9,7 +9,7 @@ function App() {
 
     useEffect(() => {
         getPlayerCount()
-            .then(data => setCount(data.totalCount))
+            .then(data => setCount(data))
             .catch(err => console.error('Failed to fetch count:', err));
     }, []);
 

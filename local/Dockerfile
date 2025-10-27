@@ -10,12 +10,11 @@ COPY frontend/package*.json ./
 # Install dependencies
 RUN npm install
 
-# Copy all frontend files (including public/ folder)
+# Copy frontend source files
 COPY frontend/src ./src
-COPY frontend/public ./public
 COPY frontend/index.html ./
 COPY frontend/vite.config.js ./
-COPY frontend/eslint.config.js ./
+COPY frontend/eslint.config.js ./ 2>/dev/null || true
 
 # Build frontend
 RUN npm run build

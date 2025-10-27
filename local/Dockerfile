@@ -8,10 +8,14 @@ WORKDIR /frontend
 COPY frontend/package*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm install
 
-# Copy frontend source
-COPY frontend/ ./
+# Copy all frontend files (including public/ folder)
+COPY frontend/src ./src
+COPY frontend/public ./public
+COPY frontend/index.html ./
+COPY frontend/vite.config.js ./
+COPY frontend/eslint.config.js ./
 
 # Build frontend
 RUN npm run build

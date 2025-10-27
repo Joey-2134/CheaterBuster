@@ -90,4 +90,10 @@ public class GatheringController {
         log.info("Fetching gathering status");
         return ResponseEntity.ok(dataGatheringService.getStatus());
     }
+
+    @GetMapping("/count")
+    public ResponseEntity<Long> getCount() {
+        log.info("Fetching gathering count");
+        return ResponseEntity.ok(dataGatheringService.getCount());
+    }
 }

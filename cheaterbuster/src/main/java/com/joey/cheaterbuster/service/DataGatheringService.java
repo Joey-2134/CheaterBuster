@@ -191,6 +191,13 @@ public class DataGatheringService {
     }
 
     /**
+     * Get total count of profiles gathered
+     */
+    public long getCount() {
+        return playerDataRepository.count();
+    }
+
+    /**
      * Status DTO for API responses
      */
     @lombok.Builder

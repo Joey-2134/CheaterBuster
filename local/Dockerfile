@@ -14,7 +14,6 @@ RUN npm install
 COPY frontend/src ./src
 COPY frontend/index.html ./
 COPY frontend/vite.config.js ./
-COPY frontend/eslint.config.js ./ 2>/dev/null || true
 
 # Build frontend
 RUN npm run build

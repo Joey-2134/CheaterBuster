@@ -23,7 +23,7 @@ function Home() {
 
       <h1>CheaterBuster</h1>
       <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
+        <button>
           <p>This model has been trained on</p>
           {count}
           <p>different players!</p>

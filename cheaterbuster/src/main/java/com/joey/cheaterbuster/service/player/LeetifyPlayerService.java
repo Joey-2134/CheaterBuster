@@ -154,7 +154,7 @@ public class LeetifyPlayerService {
         log.info("Fetching {} new banned player profiles", numEntries);
         List<PlayerDataDTO> profiles = new ArrayList<>();
         int currentPage = 0;
-        int maxPages = 100; // Safety limit to prevent infinite loops
+        int maxPages = 15000; // Safety limit to prevent infinite loops
 
         while (profiles.size() < numEntries && currentPage < maxPages) {
             log.debug("Fetching page {} of banned Steam IDs", currentPage);
@@ -174,7 +174,7 @@ public class LeetifyPlayerService {
 
             // Fetch profiles for new Steam IDs
             for (String steamId : newSteamIds) {
-                if (profiles.size() >= numEntries) {
+                if (profiles.size() >= numEntries || currentPage >= maxPages) {
                     break;
                 }
 

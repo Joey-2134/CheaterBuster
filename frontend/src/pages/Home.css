@@ -1,0 +1,32 @@
+.home-container {
+  position: relative;
+}
+
+.admin-link {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+}
+
+.admin-button {
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.admin-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.home-container h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}

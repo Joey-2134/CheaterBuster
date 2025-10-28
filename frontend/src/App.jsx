@@ -1,27 +1,27 @@
-import {useEffect, useState} from 'react'
-import './App.css'
-import {getPlayerCount} from "./request/gathering.js";
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import './App.css';
+import Home from './pages/Home.jsx';
+import AdminLogin from './pages/AdminLogin.jsx';
+import AdminDashboard from './pages/AdminDashboard.jsx';
+import ProtectedRoute from './components/ProtectedRoute.jsx';
 
 function App() {
-  const [count, setCount] = useState(0)
-
-    useEffect(() => {
-        getPlayerCount()
-            .then(data => setCount(data))
-            .catch(err => console.error('Failed to fetch count:', err));
-    }, []);
-
-
-    return (
-    <>
-      <h1>CheaterBuster</h1>
-      <div className="card">
-          <p>This model has been trained on</p>
-            {count}
-          <p>different players!</p>
-      </div>
-    </>
-  )
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/admin" element={<AdminLogin />} />
+        <Route
+          path="/admin/dashboard"
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </Router>
+  );
 }
 
-export default App
+export default App;

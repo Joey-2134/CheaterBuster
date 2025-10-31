@@ -32,6 +32,8 @@ import java.util.*;
 @RequiredArgsConstructor
 public class LeetifyPlayerService {
 
+    private static final int BANNED_PLAYER_GET_COUNT = 100;
+    private static final int INITIAL_PAGE = 1000;
     private static final int MAX_PLAYER_IDS_FROM_MATCHES = 20;
     private static final String GET_PROFILE_PATH = "/v3/profile?steam64_id=";
     private static final String GET_BANNED_PATH = "https://vaclist.net/api/banned";
@@ -40,6 +42,7 @@ public class LeetifyPlayerService {
     private final LeetifyMatchService leetifyMatchService;
     private final PlayerDataRepository playerDataRepository;
     private final PlayerDataMapper playerDataMapper;
+    private int currentPage = INITIAL_PAGE;
 
     /**
      * Fetches the profile of a player given their Steam64 ID.
@@ -146,74 +149,44 @@ public class LeetifyPlayerService {
     /**
      * Gets and saves list of banned players to DB with automatic pagination.
      * Only fetches profiles that don't already exist in the database.
+     * Fetches from current page and increments page counter for next call.
      *
-     * @param numEntries num of new profiles to fetch
-     * @return list of banned profiles
+     * @return list of banned player profiles from current page
      */
-    public List<PlayerDataDTO> getBannedPlayerProfiles(int numEntries) {
-        log.info("Fetching {} new banned player profiles", numEntries);
+    public List<PlayerDataDTO> getBannedPlayerProfiles() {
+        log.info("Fetching banned player profiles from VacList page {}", currentPage);
         List<PlayerDataDTO> profiles = new ArrayList<>();
-        int currentPage = 0;
-        int maxPages = 15000; // Safety limit to prevent infinite loops
+        Set<String> bannedSteamIds = getBannedSteamIds();
 
-        while (profiles.size() < numEntries && currentPage < maxPages) {
-            log.debug("Fetching page {} of banned Steam IDs", currentPage);
-            Set<String> steamIdsFromPage = getBannedSteamIds(numEntries, currentPage);
+        log.debug("Processing {} banned Steam IDs from page {}", bannedSteamIds.size(), currentPage);
 
-            if (steamIdsFromPage.isEmpty()) {
-                log.info("No more banned Steam IDs available from VacList");
-                break;
+        for (String steamId : bannedSteamIds) {
+            try {
+                // getPlayerProfile checks DB first, fetches from API if not present, and saves to DB
+                PlayerDataDTO profile = getPlayerProfile(steamId);
+                profiles.add(profile);
+                log.debug("Added banned player profile: {} (Total: {})", profile.getName(), profiles.size());
+            } catch (PlayerNotFoundException e) {
+                log.debug("Banned player not found on Leetify for Steam ID: {}, skipping", steamId);
+            } catch (Exception e) {
+                log.warn("Failed to fetch banned player profile for Steam ID: {} - {}", steamId, e.getMessage());
             }
-
-            // Filter out Steam IDs that already exist in the database
-            List<String> newSteamIds = steamIdsFromPage.stream()
-                    .filter(steamId -> !playerDataRepository.existsBySteamId(steamId))
-                    .toList();
-
-            log.debug("Page {}: Found {} total IDs, {} are new", currentPage, steamIdsFromPage.size(), newSteamIds.size());
-
-            // Fetch profiles for new Steam IDs
-            for (String steamId : newSteamIds) {
-                if (profiles.size() >= numEntries || currentPage >= maxPages) {
-                    break;
-                }
-
-                try {
-                    PlayerDataDTO profile = getPlayerProfile(steamId);
-                    if (profile != null) {
-                        profiles.add(profile);
-                        log.debug("Added banned profile for {} (Total: {}/{})", profile.getName(), profiles.size(), numEntries);
-                    } else {
-                        log.warn("Received null profile for banned Steam ID: {}, skipping", steamId);
-                    }
-                } catch (Exception e) {
-                    log.warn("Failed to fetch profile for banned Steam ID: {} - {}", steamId, e.getMessage());
-                    // Continue to next profile instead of failing the entire request
-                }
-            }
-
-            currentPage++;
         }
 
-        if (currentPage >= maxPages) {
-            log.warn("Reached maximum page limit ({}) while fetching banned profiles", maxPages);
-        }
-
-        log.info("Successfully fetched {} new banned player profiles (checked {} pages)", profiles.size(), currentPage);
+        currentPage++;
+        log.info("Completed banned player gathering from page {}. Collected {} profiles", currentPage - 1, profiles.size());
         return profiles;
     }
 
     /**
      * Fetches a list of banned steamIds from vaclist
      *
-     * @param numEntries number of ids to return per page
-     * @param page page number (0-indexed)
      * @return a set of steamIds
      */
     @RateLimiter(name = "vaclistApi")
-    private Set<String> getBannedSteamIds(int numEntries, int page) {
+    private Set<String> getBannedSteamIds() {
         Set<String> steamIds = new HashSet<>();
-        String url = GET_BANNED_PATH + "?count=" + numEntries + "&page=" + page;
+        String url = GET_BANNED_PATH + "?count=" + BANNED_PLAYER_GET_COUNT + "&page=" + currentPage;
         HttpHeaders headers = new HttpHeaders();
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
@@ -232,16 +205,16 @@ public class LeetifyPlayerService {
                         steamIds.add(profile.getSteamId());
                     }
                 }
-                log.debug("Fetched {} Steam IDs from VacList page {}", steamIds.size(), page);
+                log.debug("Fetched {} Steam IDs from VacList page {}", steamIds.size(), currentPage);
             }
 
             return steamIds;
         } catch (HttpClientErrorException e) {
-            log.error("VacList API error on page {}: {} - {}", page, e.getStatusCode(), e.getMessage());
-            throw new VaclistApiException("Failed to fetch banned Steam IDs from VacList (page " + page + ")", e);
+            log.error("VacList API error on page {}: {} - {}", currentPage, e.getStatusCode(), e.getMessage());
+            throw new VaclistApiException("Failed to fetch banned Steam IDs from VacList (page " + currentPage + ")", e);
         } catch (Exception e) {
-            log.error("Unexpected error fetching banned Steam IDs from page {}: {}", page, e.getMessage(), e);
-            throw new VaclistApiException("Unexpected error fetching banned Steam IDs from VacList (page " + page + ")", e);
+            log.error("Unexpected error fetching banned Steam IDs from page {}: {}", currentPage, e.getMessage(), e);
+            throw new VaclistApiException("Unexpected error fetching banned Steam IDs from VacList (page " + currentPage + ")", e);
         }
     }
 

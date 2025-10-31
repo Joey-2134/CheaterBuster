@@ -49,14 +49,12 @@ public class PlayerController {
     /**
      * Get a list of banned players
      *
-     * @param limit num of banned profiles to fetch
      * @return List of banned players
      */
     @GetMapping("/players/banned")
-    public List<PlayerDataDTO> getBannedPlayers(
-            @RequestParam(defaultValue = "10") @Min(value = 1, message = "Limit must be at least 1") @Max(value = 100, message = "Limit cannot exceed 100") int limit) {
-        log.info("GET /api/players/banned?limit={} - Fetching banned players", limit);
-        return leetifyPlayerService.getBannedPlayerProfiles(limit);
+    public List<PlayerDataDTO> getBannedPlayers() {
+        log.info("GET /api/players/banned - Fetching banned players");
+        return leetifyPlayerService.getBannedPlayerProfiles();
     }
 
     /**

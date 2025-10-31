@@ -136,10 +136,8 @@ public class DataGatheringService {
      * Gather a batch of banned players
      */
     private int gatherBannedPlayers() {
-        log.debug("Fetching batch of {} banned players", batchSize);
-
         try {
-            List<PlayerDataDTO> profiles = leetifyPlayerService.getBannedPlayerProfiles(batchSize);
+            List<PlayerDataDTO> profiles = leetifyPlayerService.getBannedPlayerProfiles();
             log.info("Successfully gathered {} banned player profiles", profiles.size());
             return profiles.size();
         } catch (Exception e) {

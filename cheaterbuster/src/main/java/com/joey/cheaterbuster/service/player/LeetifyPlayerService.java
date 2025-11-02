@@ -33,7 +33,7 @@ import java.util.*;
 public class LeetifyPlayerService {
 
     private static final int BANNED_PLAYER_GET_COUNT = 100;
-    private static final int INITIAL_PAGE = 1000;
+    private static final int INITIAL_PAGE = 3490;
     private static final int MAX_PLAYER_IDS_FROM_MATCHES = 20;
     private static final String GET_PROFILE_PATH = "/v3/profile?steam64_id=";
     private static final String GET_BANNED_PATH = "https://vaclist.net/api/banned";
@@ -158,7 +158,10 @@ public class LeetifyPlayerService {
         List<PlayerDataDTO> profiles = new ArrayList<>();
         Set<String> bannedSteamIds = getBannedSteamIds();
 
-        log.debug("Processing {} banned Steam IDs from page {}", bannedSteamIds.size(), currentPage);
+        log.info("Retrieved {} Steam IDs from VacList page {}", bannedSteamIds.size(), currentPage);
+
+        int notFoundCount = 0;
+        int errorCount = 0;
 
         for (String steamId : bannedSteamIds) {
             try {
@@ -167,14 +170,17 @@ public class LeetifyPlayerService {
                 profiles.add(profile);
                 log.debug("Added banned player profile: {} (Total: {})", profile.getName(), profiles.size());
             } catch (PlayerNotFoundException e) {
-                log.debug("Banned player not found on Leetify for Steam ID: {}, skipping", steamId);
+                notFoundCount++;
+                log.info("Banned player not found on Leetify for Steam ID: {}, skipping", steamId);
             } catch (Exception e) {
+                errorCount++;
                 log.warn("Failed to fetch banned player profile for Steam ID: {} - {}", steamId, e.getMessage());
             }
         }
 
         currentPage++;
-        log.info("Completed banned player gathering from page {}. Collected {} profiles", currentPage - 1, profiles.size());
+        log.info("Completed banned player gathering from page {}. VacList returned: {}, Successfully collected: {}, Not found on Leetify: {}, Errors: {}",
+                currentPage - 1, bannedSteamIds.size(), profiles.size(), notFoundCount, errorCount);
         return profiles;
     }
 
@@ -284,7 +290,7 @@ public class LeetifyPlayerService {
             // Stop fetching match details if we've collected enough player IDs
             if (playerIds.size() >= MAX_PLAYER_IDS_FROM_MATCHES) {
                 log.debug("Reached max player IDs limit ({}) after processing {} matches",
-                         MAX_PLAYER_IDS_FROM_MATCHES, matchesProcessed);
+                        MAX_PLAYER_IDS_FROM_MATCHES, matchesProcessed);
                 break;
             }
 

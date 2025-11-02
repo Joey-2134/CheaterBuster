@@ -19,6 +19,9 @@ public class LeetifyConfig {
     @Value("${leetify.api.key}")
     private String apiKey;
 
+    @Value("${http.user-agent}")
+    private String userAgent;
+
     @PostConstruct
     public void validateConfig() {
         if (apiKey == null || apiKey.trim().isEmpty()) {

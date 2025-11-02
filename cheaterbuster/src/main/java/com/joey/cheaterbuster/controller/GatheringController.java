@@ -87,13 +87,13 @@ public class GatheringController {
      */
     @GetMapping("/status")
     public ResponseEntity<DataGatheringService.GatheringStatus> getGatheringStatus() {
-        log.info("Fetching gathering status");
+        log.debug("Fetching gathering status");
         return ResponseEntity.ok(dataGatheringService.getStatus());
     }
 
     @GetMapping("/count")
     public ResponseEntity<Long> getCount() {
-        log.info("Fetching gathering count");
+        log.debug("Fetching gathering count");
         return ResponseEntity.ok(dataGatheringService.getCount());
     }
 }

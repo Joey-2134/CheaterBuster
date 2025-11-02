@@ -40,7 +40,7 @@ public class LeetifyMatchService {
         log.debug("Fetching match history for Steam ID: {}", steamId);
         String url = config.getBaseUrl() + GET_MATCH_HISTORY_PATH + steamId;
 
-        HttpHeaders headers = Utils.createLeetifyHeaders(config.getApiKey());
+        HttpHeaders headers = Utils.createLeetifyHeaders(config.getApiKey(), config.getUserAgent());
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
         try {
@@ -74,7 +74,7 @@ public class LeetifyMatchService {
         log.debug("Fetching match details for Game ID: {}", gameId);
         String url = config.getBaseUrl() + GET_MATCH_DETAILS_PATH + gameId;
 
-        HttpHeaders headers = Utils.createLeetifyHeaders(config.getApiKey());
+        HttpHeaders headers = Utils.createLeetifyHeaders(config.getApiKey(), config.getUserAgent());
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
         try {

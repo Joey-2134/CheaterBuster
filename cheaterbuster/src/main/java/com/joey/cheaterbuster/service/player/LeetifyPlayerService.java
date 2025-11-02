@@ -193,7 +193,7 @@ public class LeetifyPlayerService {
     private Set<String> getBannedSteamIds() {
         Set<String> steamIds = new HashSet<>();
         String url = GET_BANNED_PATH + "?count=" + BANNED_PLAYER_GET_COUNT + "&page=" + currentPage;
-        HttpHeaders headers = new HttpHeaders();
+        HttpHeaders headers = Utils.createHeadersWithUserAgent(config.getUserAgent());
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
         try {
@@ -234,7 +234,7 @@ public class LeetifyPlayerService {
     private PlayerDataDTO fetchFromLeetifyApi(String steam64Id) {
         String url = config.getBaseUrl() + GET_PROFILE_PATH + steam64Id;
 
-        HttpHeaders headers = Utils.createLeetifyHeaders(config.getApiKey());
+        HttpHeaders headers = Utils.createLeetifyHeaders(config.getApiKey(), config.getUserAgent());
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
         try {

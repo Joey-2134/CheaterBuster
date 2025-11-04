@@ -4,6 +4,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from dotenv import load_dotenv
 
+# Colours for Visualizations
+COLOUR_BANNED = '#e74c3c'        # Red for banned players
+COLOUR_NON_BANNED = '#2ecc71'    # Green for non-banned players
+COLOUR_BLUE = '#3498db'          # Blue
 
 def setup_database_connection(env_path: str = '../local/.env') -> Engine:
     load_dotenv(env_path)

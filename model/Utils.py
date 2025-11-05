@@ -9,6 +9,8 @@ COLOUR_BANNED = '#e74c3c'        # Red for banned players
 COLOUR_NON_BANNED = '#2ecc71'    # Green for non-banned players
 COLOUR_BLUE = '#3498db'          # Blue
 
+false, true = b'\x00', b'\x01'
+
 def setup_database_connection(env_path: str = '../local/.env') -> Engine:
     load_dotenv(env_path)
 

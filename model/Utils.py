@@ -1,7 +1,11 @@
 import os
+import time
 
+import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
+from imblearn.combine import SMOTEENN
+from sklearn.impute import KNNImputer
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 
@@ -38,6 +42,24 @@ def load_all_players(engine: Engine) -> pd.DataFrame:
     df = pd.read_sql("SELECT * FROM player_data", engine)
     print(f"Loaded {len(df)} players")
     return df
+
+def load_data(csv_path='data.csv'):
+    if os.path.exists(csv_path):
+        print(f"Loading data from {csv_path}...")
+        df = pd.read_csv(csv_path)
+
+        # Convert has_ban from string representation back to bytes
+        if df['has_ban'].dtype == 'object' and isinstance(df['has_ban'].iloc[0], str):
+            df['has_ban'] = df['has_ban'].apply(lambda x: false if x == "b'\\x00'" else true)
+
+        print(f"Loaded {len(df)} players from CSV")
+        return df
+    else:
+        print(f"Loading data from MySQL server...")
+        engine = setup_database_connection()
+        df = load_all_players(engine)
+        df.to_csv(csv_path, index=False)
+        return df
 
 def evaluate_model(clf, X_test, y_test, show_plot=True):
     from sklearn.metrics import (confusion_matrix, roc_auc_score, precision_score, recall_score, f1_score)
@@ -89,3 +111,52 @@ def evaluate_model(clf, X_test, y_test, show_plot=True):
     print(f"  False Negative Rate:     {fnr:.4f} ({fn:,} cheaters missed)")
     print(f"  True Positives:          {tp:,} cheaters correctly identified")
     print(f"  True Negatives:          {tn:,} legit players correctly identified")
+
+def impute_data(player_data):
+    start_time = time.time()
+    print("Imputing data...")
+
+    banned_player_data = player_data[player_data['has_ban'] == true]
+    non_banned_player_data = player_data[player_data['has_ban'] == false]
+    features_to_exclude = ['steam_id', 'created_at', 'updated_at', 'total_matches', 'rank_premier', 'rank_faceit_elo']
+    numeric_cols = player_data.select_dtypes(include=['float64', 'int64']).columns.tolist()
+    numeric_cols = [col for col in numeric_cols if col not in features_to_exclude]
+
+    knn_imputer = KNNImputer(n_neighbors=5, weights='distance')
+    banned_data = banned_player_data.copy()
+    non_banned_data = non_banned_player_data.copy()
+
+    for col in numeric_cols:
+        banned_data.loc[banned_data[col] == 0, col] = np.nan
+        non_banned_data.loc[non_banned_data[col] == 0, col] = np.nan
+
+    banned_imputed_values = knn_imputer.fit_transform(banned_data[numeric_cols])
+    banned_imputed = banned_data.copy()
+    banned_imputed[numeric_cols] = banned_imputed_values
+
+    non_banned_imputed_values = knn_imputer.fit_transform(non_banned_data[numeric_cols])
+    non_banned_imputed = non_banned_data.copy()
+    non_banned_imputed[numeric_cols] = non_banned_imputed_values
+
+    elapsed_time = time.time() - start_time
+    print(f"Data imputation completed in {elapsed_time} seconds\n")
+
+    return pd.concat([banned_imputed, non_banned_imputed], ignore_index=True)
+
+def resample_data(X_train, y_train):
+    start_time = time.time()
+    print("Resampling data...")
+
+    smote_enn = SMOTEENN(random_state=42)
+    X_train_resampled, y_train_resampled = smote_enn.fit_resample(X_train, y_train)
+    print(f"\nOriginal distribution:")
+    print(f"  Banned: {(y_train == 1).sum():,} ({(y_train == 1).sum()/len(y_train)*100:.2f}%)")
+    print(f"  Non-banned: {(y_train == 0).sum():,} ({(y_train == 0).sum()/len(y_train)*100:.2f}%)")
+    print(f"\nResampled distribution:")
+    print(f"  Banned: {(y_train_resampled == 1).sum():,} ({(y_train_resampled == 1).sum()/len(y_train_resampled)*100:.2f}%)")
+    print(f"  Non-banned: {(y_train_resampled == 0).sum():,} ({(y_train_resampled == 0).sum()/len(y_train_resampled)*100:.2f}%)")
+    elapsed_time = time.time() - start_time
+    print(f"Data resampling completed in {elapsed_time} seconds\n")
+
+    return X_train_resampled, y_train_resampled
+

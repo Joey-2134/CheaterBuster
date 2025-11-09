@@ -66,6 +66,8 @@ def evaluate_model(clf, X_test, y_test, show_plot=True):
     import matplotlib.pyplot as plt
     import seaborn as sns
 
+    print("Evaluating model...")
+
     y_pred = clf.predict(X_test)
     y_pred_proba = clf.predict_proba(X_test)[:, 1]
 
@@ -156,7 +158,7 @@ def resample_data(X_train, y_train):
     print(f"  Banned: {(y_train_resampled == 1).sum():,} ({(y_train_resampled == 1).sum()/len(y_train_resampled)*100:.2f}%)")
     print(f"  Non-banned: {(y_train_resampled == 0).sum():,} ({(y_train_resampled == 0).sum()/len(y_train_resampled)*100:.2f}%)")
     elapsed_time = time.time() - start_time
-    print(f"Data resampling completed in {elapsed_time} seconds\n")
+    print(f"\nData resampling completed in {elapsed_time} seconds\n")
 
     return X_train_resampled, y_train_resampled
 

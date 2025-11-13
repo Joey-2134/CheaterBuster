@@ -48,7 +48,6 @@ def load_data(csv_path='data.csv'):
         print(f"Loading data from {csv_path}...")
         df = pd.read_csv(csv_path)
 
-        # Convert has_ban from string representation back to bytes
         if df['has_ban'].dtype == 'object' and isinstance(df['has_ban'].iloc[0], str):
             df['has_ban'] = df['has_ban'].apply(lambda x: false if x == "b'\\x00'" else true)
 
@@ -114,7 +113,30 @@ def evaluate_model(clf, X_test, y_test, show_plot=True):
     print(f"  True Positives:          {tp:,} cheaters correctly identified")
     print(f"  True Negatives:          {tn:,} legit players correctly identified")
 
+    return {
+        'roc_auc': roc_auc,
+        'precision': precision,
+        'recall': recall,
+        'f1_score': f1,
+        'fpr': fpr,
+        'fnr': fnr,
+        'tp': tp,
+        'tn': tn,
+        'fp': fp,
+        'fn': fn
+    }
+
 def impute_data(player_data):
+    if (os.path.exists('imputed.csv')):
+        print("Loading imputed data from imputed.csv...")
+        imputed_data = pd.read_csv('imputed.csv')
+
+        if imputed_data['has_ban'].dtype == 'object' and isinstance(imputed_data['has_ban'].iloc[0], str):
+            imputed_data['has_ban'] = imputed_data['has_ban'].apply(lambda x: false if x == "b'\\x00'" else true)
+
+        print(f"Loaded {len(imputed_data)} players from CSV")
+        return imputed_data
+
     start_time = time.time()
     print("Imputing data...")
 
@@ -140,12 +162,30 @@ def impute_data(player_data):
     non_banned_imputed = non_banned_data.copy()
     non_banned_imputed[numeric_cols] = non_banned_imputed_values
 
+    pd.concat([banned_imputed, non_banned_imputed], ignore_index=True).to_csv('imputed.csv', index=False)
+
     elapsed_time = time.time() - start_time
     print(f"Data imputation completed in {elapsed_time} seconds\n")
 
     return pd.concat([banned_imputed, non_banned_imputed], ignore_index=True)
 
 def resample_data(X_train, y_train):
+    if os.path.exists('resampled.csv'):
+        print("Loading resampled data from resampled.csv...")
+        resampled_data = pd.read_csv('resampled.csv')
+
+        y_train_resampled = resampled_data['has_ban']
+        X_train_resampled = resampled_data.drop('has_ban', axis=1)
+
+        if y_train_resampled.dtype == 'object' and isinstance(y_train_resampled.iloc[0], str):
+            y_train_resampled = y_train_resampled.apply(lambda x: false if x == "b'\\x00'" else true)
+
+        print(f"Loaded {len(resampled_data)} resampled samples from CSV")
+        print(f"  Banned: {(y_train_resampled == 1).sum():,} ({(y_train_resampled == 1).sum()/len(y_train_resampled)*100:.2f}%)")
+        print(f"  Non-banned: {(y_train_resampled == 0).sum():,} ({(y_train_resampled == 0).sum()/len(y_train_resampled)*100:.2f}%)")
+
+        return X_train_resampled, y_train_resampled
+
     start_time = time.time()
     print("Resampling data...")
 
@@ -157,6 +197,11 @@ def resample_data(X_train, y_train):
     print(f"\nResampled distribution:")
     print(f"  Banned: {(y_train_resampled == 1).sum():,} ({(y_train_resampled == 1).sum()/len(y_train_resampled)*100:.2f}%)")
     print(f"  Non-banned: {(y_train_resampled == 0).sum():,} ({(y_train_resampled == 0).sum()/len(y_train_resampled)*100:.2f}%)")
+
+    resampled_data = X_train_resampled.copy()
+    resampled_data['has_ban'] = y_train_resampled
+    resampled_data.to_csv('resampled.csv', index=False)
+
     elapsed_time = time.time() - start_time
     print(f"\nData resampling completed in {elapsed_time} seconds\n")
 

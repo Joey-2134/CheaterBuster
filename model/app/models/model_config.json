@@ -1,0 +1,41 @@
+{
+  "features": [
+    "accuracy_enemy_spotted",
+    "accuracy_head",
+    "counter_strafing_good_shots_ratio",
+    "ct_opening_aggression_success_rate",
+    "ct_opening_duel_success_percentage",
+    "flashbang_hit_foe_avg_duration",
+    "flashbang_hit_foe_per_flashbang",
+    "flashbang_hit_friend_per_flashbang",
+    "flashbang_leading_to_kill",
+    "flashbang_thrown",
+    "he_foes_damage_avg",
+    "he_friends_damage_avg",
+    "preaim",
+    "rating_aim",
+    "rating_clutch",
+    "rating_ct_leetify",
+    "rating_opening",
+    "rating_positioning",
+    "rating_t_leetify",
+    "rating_utility",
+    "reaction_time_ms",
+    "spray_accuracy",
+    "t_opening_aggression_success_rate",
+    "t_opening_duel_success_percentage",
+    "trade_kill_opportunities_per_round",
+    "trade_kills_success_percentage",
+    "traded_deaths_success_percentage",
+    "utility_on_death_avg",
+    "win_rate"
+  ],
+  "num_features": 29,
+  "model_type": "XGBoost",
+  "version": "1.0",
+  "hyperparameters": {
+    "n_estimators": 300,
+    "max_depth": 15,
+    "learning_rate": 0.5
+  }
+}

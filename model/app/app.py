@@ -149,10 +149,9 @@ def get_features():
         'count': len(feature_names)
     }), 200
 
-# Load model artifacts when module is imported (works with both Flask dev server and Gunicorn)
+
 load_artifacts()
 
 if __name__ == '__main__':
-    # This block only runs when using `python app.py` directly
     port = int(os.getenv('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)

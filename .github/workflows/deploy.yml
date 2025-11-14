@@ -11,6 +11,10 @@ env:
   ECS_CLUSTER: cheaterbuster-ecs
   ECS_SERVICE: cheaterbuster-ecs-service
   CONTAINER_NAME: cheaterbuster
+  # ML Service
+  ECR_ML_REPOSITORY: cheaterbuster-ml-service
+  ECS_ML_SERVICE: cheaterbuster-ml-service
+  ML_CONTAINER_NAME: ml-service
 
 jobs:
   deploy:
@@ -142,3 +146,96 @@ jobs:
           aws ecs wait services-stable \
             --cluster ${{ env.ECS_CLUSTER }} \
             --services ${{ env.ECS_SERVICE }}
+
+      # ====================
+      # ML Service Deployment
+      # ====================
+
+      - name: Build and push ML service Docker image
+        id: build-ml-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd model/app
+          docker build -t $ECR_REGISTRY/$ECR_ML_REPOSITORY:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_ML_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_ML_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_ML_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_ML_REPOSITORY:latest
+          echo "ml-image=$ECR_REGISTRY/$ECR_ML_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Create ML service ECS task definition
+        id: ml-task-def
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cat > ml-task-definition.json << EOF
+          {
+            "family": "cheaterbuster-ml-service",
+            "networkMode": "awsvpc",
+            "requiresCompatibilities": ["FARGATE"],
+            "cpu": "512",
+            "memory": "1024",
+            "executionRoleArn": "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/ecsTaskExecutionRole",
+            "containerDefinitions": [
+              {
+                "name": "$ML_CONTAINER_NAME",
+                "image": "$ECR_REGISTRY/$ECR_ML_REPOSITORY:$IMAGE_TAG",
+                "essential": true,
+                "portMappings": [
+                  {
+                    "containerPort": 5000,
+                    "protocol": "tcp"
+                  }
+                ],
+                "environment": [
+                  {
+                    "name": "PORT",
+                    "value": "5000"
+                  }
+                ],
+                "logConfiguration": {
+                  "logDriver": "awslogs",
+                  "options": {
+                    "awslogs-group": "/ecs/cheaterbuster-ml-service",
+                    "awslogs-region": "${{ env.AWS_REGION }}",
+                    "awslogs-stream-prefix": "ecs",
+                    "awslogs-create-group": "true"
+                  }
+                },
+                "healthCheck": {
+                  "command": ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"],
+                  "interval": 30,
+                  "timeout": 5,
+                  "retries": 3,
+                  "startPeriod": 60
+                }
+              }
+            ]
+          }
+          EOF
+          cat ml-task-definition.json
+
+      - name: Register ML service ECS task definition
+        id: register-ml-task-def
+        run: |
+          ML_TASK_DEFINITION_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://ml-task-definition.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+          echo "ml-task-definition-arn=$ML_TASK_DEFINITION_ARN" >> $GITHUB_OUTPUT
+
+      - name: Deploy ML service to ECS
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_ML_SERVICE }} \
+            --task-definition ${{ steps.register-ml-task-def.outputs.ml-task-definition-arn }} \
+            --force-new-deployment
+
+      - name: Wait for ML service stability
+        run: |
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_ML_SERVICE }}

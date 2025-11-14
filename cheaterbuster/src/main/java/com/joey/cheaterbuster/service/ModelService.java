@@ -71,41 +71,6 @@ public class ModelService {
         return builder.build();
     }
 
-    private PredictionRequestDTO buildPredictionRequest(PlayerData entity) {
-        return PredictionRequestDTO.builder()
-                .accuracyEnemySpotted(entity.getAccuracyEnemySpotted())
-                .accuracyHead(entity.getAccuracyHead())
-                .counterStrafingGoodShotsRatio(entity.getCounterStrafingGoodShotsRatio())
-                .ctOpeningAggressionSuccessRate(entity.getCtOpeningAggressionSuccessRate())
-                .ctOpeningDuelSuccessPercentage(entity.getCtOpeningDuelSuccessPercentage())
-                .flashbangHitFoeAvgDuration(entity.getFlashbangHitFoeAvgDuration())
-                .flashbangHitFoePerFlashbang(entity.getFlashbangHitFoePerFlashbang())
-                .flashbangHitFriendPerFlashbang(entity.getFlashbangHitFriendPerFlashbang())
-                .flashbangLeadingToKill(entity.getFlashbangLeadingToKill())
-                .flashbangThrown(entity.getFlashbangThrown())
-                .heFoesDamageAvg(entity.getHeFoesDamageAvg())
-                .preaim(entity.getPreaim())
-                .reactionTimeMs(entity.getReactionTimeMs())
-                .sprayAccuracy(entity.getSprayAccuracy())
-                .tOpeningAggressionSuccessRate(entity.getTOpeningAggressionSuccessRate())
-                .tOpeningDuelSuccessPercentage(entity.getTOpeningDuelSuccessPercentage())
-                .tradeKillOpportunitiesPerRound(entity.getTradeKillOpportunitiesPerRound())
-                .tradeKillsSuccessPercentage(entity.getTradeKillsSuccessPercentage())
-                .tradedDeathsSuccessPercentage(entity.getTradedDeathsSuccessPercentage())
-                .utilityOnDeathAvg(entity.getUtilityOnDeathAvg())
-
-                .ratingAim(entity.getRatingAim())
-                .ratingClutch(entity.getRatingClutch())
-                .ratingCtLeetify(entity.getRatingCtLeetify())
-                .ratingOpening(entity.getRatingOpening())
-                .ratingPositioning(entity.getRatingPositioning())
-                .ratingTLeetify(entity.getRatingTLeetify())
-                .ratingUtility(entity.getRatingUtility())
-
-                .winRate(entity.getWinRate())
-                .build();
-    }
-
     private PredictionResultDTO callMLService(PredictionRequestDTO request) {
         String url = mlServiceUrl + "/predict";
 

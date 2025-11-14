@@ -15,6 +15,22 @@ services:
     networks:
       - cheaterbuster-network
 
+  ml-service:
+    build:
+      context: ../model/app
+      dockerfile: Dockerfile
+    container_name: cheaterbuster-ml-service
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - cheaterbuster-network
+
   app:
     build:
       context: ..
@@ -23,11 +39,14 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      ml-service:
+        condition: service_healthy
     environment:
       DB_URL: jdbc:mysql://mysql:3306/cheaterbuster
       DB_USERNAME: root
       DB_PASSWORD: root
       LEETIFY_API_KEY: ${LEETIFY_API_KEY}
+      ML_SERVICE_URL: http://ml-service:5000
     ports:
       - "8080:8080"
     networks:
